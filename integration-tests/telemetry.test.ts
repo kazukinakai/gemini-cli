@@ -15,11 +15,19 @@ describe('telemetry', () => {
     // Run a simple command that should trigger telemetry
     await rig.run('just saying hi');
 
-    // Verify that a user_prompt event was logged
-    const hasUserPromptEvent = await rig.waitForTelemetryEvent('user_prompt');
+    // Verify that an expected event was logged
+    const hasUserPromptEvent = await rig.waitForTelemetryEvent(
+      'gemini_cli.user_prompt',
+    );
     expect(hasUserPromptEvent).toBe(true);
 
-    // Verify that a cli_command_count metric was emitted
+    // Verify an expected semantic compliant event was logged
+    const hasApiResponseEvent = await rig.waitForTelemetryEvent(
+      'gen_ai.client.inference.operation.details',
+    );
+    expect(hasApiResponseEvent).toBe(true);
+
+    // Verify that an expected metric was emitted
     const cliCommandCountMetric = rig.readMetric('session.count');
     expect(cliCommandCountMetric).not.toBeNull();
   });

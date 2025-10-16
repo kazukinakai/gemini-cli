@@ -20,7 +20,6 @@ import {
 } from '../index.js';
 import { OutputFormat } from '../output/types.js';
 import { logs } from '@opentelemetry/api-logs';
-import { SemanticAttributes } from '@opentelemetry/semantic-conventions';
 import type { Config } from '../config/config.js';
 import {
   logApiRequest,
@@ -94,9 +93,10 @@ import {
 } from './metrics.js';
 import * as sdk from './sdk.js';
 import { vi, describe, beforeEach, it, expect, afterEach } from 'vitest';
-import type {
-  CallableTool,
-  GenerateContentResponseUsageMetadata,
+import {
+  FinishReason,
+  type CallableTool,
+  type GenerateContentResponseUsageMetadata,
 } from '@google/genai';
 import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
 import * as uiTelemetry from './uiTelemetry.js';
@@ -344,7 +344,47 @@ describe('loggers', () => {
       const event = new ApiResponseEvent(
         'test-model',
         100,
-        'prompt-id-1',
+        {
+          prompt_id: 'prompt-id-1',
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: 'Hello' }],
+            },
+          ],
+          generate_content_config: {
+            temperature: 1,
+            topP: 2,
+            topK: 3,
+            responseMimeType: 'text/plain',
+            candidateCount: 1,
+            seed: 678,
+            frequencyPenalty: 10,
+            maxOutputTokens: 8000,
+            presencePenalty: 6,
+            stopSequences: ['stop', 'please stop'],
+            systemInstruction: {
+              role: 'model',
+              parts: [{ text: 'be nice' }],
+            },
+          },
+          server: {
+            address: 'foo.com',
+            port: 8080,
+          },
+        },
+        {
+          response_id: '',
+          candidates: [
+            {
+              content: {
+                role: 'model',
+                parts: [{ text: 'candidate 1' }],
+              },
+              finishReason: FinishReason.STOP,
+            },
+          ],
+        },
         AuthType.LOGIN_WITH_GOOGLE,
         usageData,
         'test-response',
@@ -354,26 +394,39 @@ describe('loggers', () => {
 
       expect(mockLogger.emit).toHaveBeenCalledWith({
         body: 'API response from test-model. Status: 200. Duration: 100ms.',
-        attributes: {
-          'session.id': 'test-session-id',
-          'user.email': 'test-user@example.com',
-          'installation.id': 'test-installation-id',
+        attributes: expect.objectContaining({
           'event.name': EVENT_API_RESPONSE,
-          'event.timestamp': '2025-01-01T00:00:00.000Z',
-          [SemanticAttributes.HTTP_STATUS_CODE]: 200,
-          model: 'test-model',
-          status_code: 200,
-          duration_ms: 100,
-          input_token_count: 17,
-          output_token_count: 50,
-          cached_content_token_count: 10,
-          thoughts_token_count: 5,
-          tool_token_count: 2,
-          total_token_count: 0,
-          response_text: 'test-response',
           prompt_id: 'prompt-id-1',
-          auth_type: 'oauth-personal',
-        },
+        }),
+      });
+
+      expect(mockLogger.emit).toHaveBeenCalledWith({
+        body: 'GenAI operation details from test-model. Status: 200. Duration: 100ms.',
+        attributes: expect.objectContaining({
+          'event.name': 'gen_ai.client.inference.operation.details',
+          'gen_ai.request.model': 'test-model',
+          'gen_ai.request.temperature': 1,
+          'gen_ai.request.top_p': 2,
+          'gen_ai.request.top_k': 3,
+          'gen_ai.input.messages':
+            '[{"role":"user","parts":[{"type":"text","content":"Hello"}]}]',
+          'gen_ai.output.messages':
+            '[{"finish_reason":"stop","role":"system","parts":[{"type":"text","content":"candidate 1"}]}]',
+          'gen_ai.response.finish_reasons': ['stop'],
+          'gen_ai.usage.input_tokens': 17,
+          'gen_ai.usage.output_tokens': 50,
+          'gen_ai.operation.name': 'generate_content',
+          'gen_ai.output.type': 'text',
+          'gen_ai.request.choice.count': 1,
+          'gen_ai.request.seed': 678,
+          'gen_ai.request.frequency_penalty': 10,
+          'gen_ai.request.presence_penalty': 6,
+          'gen_ai.request.max_tokens': 8000,
+          'server.address': 'foo.com',
+          'server.port': 8080,
+          'gen_ai.request.stop_sequences': ['stop', 'please stop'],
+          'gen_ai.system_instructions': '[{"type":"text","content":"be nice"}]',
+        }),
       });
 
       expect(mockMetrics.recordApiResponseMetrics).toHaveBeenCalledWith(

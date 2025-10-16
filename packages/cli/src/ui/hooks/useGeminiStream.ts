@@ -829,7 +829,6 @@ export const useGeminiStream = (
 
         if (!options?.isContinuation) {
           if (typeof queryToSend === 'string') {
-            // logging the text prompts only for now
             const promptText = queryToSend;
             logUserPrompt(
               config,
