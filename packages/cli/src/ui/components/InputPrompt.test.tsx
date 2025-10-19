@@ -1950,20 +1950,27 @@ describe('InputPrompt', () => {
       unmount();
     });
 
-    it.skip('text and cursor position should be restored after reverse search', async () => {
+    it('text and cursor position should be restored after reverse search', async () => {
       props.buffer.setText('initial text');
       props.buffer.cursor = [0, 3];
       const { stdin, stdout, unmount } = renderWithProviders(
         <InputPrompt {...props} />,
       );
-      stdin.write('\x12');
+
+      act(() => {
+        stdin.write('\x12');
+      });
       await wait();
       expect(stdout.lastFrame()).toContain('(r:)');
-      stdin.write('\u001b[27u'); // Press kitty escape key
 
-      await waitFor(() => {
-        expect(stdout.lastFrame()).not.toContain('(r:)');
+      act(() => {
+        stdin.write('\x1B'); // Standard escape
+        stdin.write('\u001b[27u'); // Kitty escape
       });
+
+      await wait(100);
+
+      expect(stdout.lastFrame()).not.toContain('(r:)');
       expect(props.buffer.text).toBe('initial text');
       expect(props.buffer.cursor).toEqual([0, 3]);
 
