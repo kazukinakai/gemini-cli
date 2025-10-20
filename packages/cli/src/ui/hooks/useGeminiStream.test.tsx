@@ -229,8 +229,8 @@ describe('useGeminiStream', () => {
     mockUseReactToolScheduler.mockReturnValue([
       [], // Default to empty array for toolCalls
       mockScheduleToolCalls,
-      mockCancelAllToolCalls,
       mockMarkToolsAsSubmitted,
+      vi.fn(), // setToolCallsForDisplay
     ]);
 
     // Reset mocks for GeminiClient instance methods (startChat and sendMessageStream)
@@ -265,8 +265,8 @@ describe('useGeminiStream', () => {
     mockUseReactToolScheduler.mockImplementation(() => [
       currentToolCalls,
       mockScheduleToolCalls,
-      mockCancelAllToolCalls,
       mockMarkToolsAsSubmitted,
+      vi.fn(), // setToolCallsForDisplay
     ]);
 
     const client = geminiClient || mockConfig.getGeminiClient();
@@ -450,7 +450,7 @@ describe('useGeminiStream', () => {
 
     mockUseReactToolScheduler.mockImplementation((onComplete) => {
       capturedOnComplete = onComplete;
-      return [[], mockScheduleToolCalls, mockMarkToolsAsSubmitted];
+      return [[], mockScheduleToolCalls, mockMarkToolsAsSubmitted, vi.fn()];
     });
 
     renderHook(() =>
@@ -533,7 +533,7 @@ describe('useGeminiStream', () => {
 
     mockUseReactToolScheduler.mockImplementation((onComplete) => {
       capturedOnComplete = onComplete;
-      return [[], mockScheduleToolCalls, mockMarkToolsAsSubmitted];
+      return [[], mockScheduleToolCalls, mockMarkToolsAsSubmitted, vi.fn()];
     });
 
     renderHook(() =>
@@ -645,7 +645,7 @@ describe('useGeminiStream', () => {
 
     mockUseReactToolScheduler.mockImplementation((onComplete) => {
       capturedOnComplete = onComplete;
-      return [[], mockScheduleToolCalls, mockMarkToolsAsSubmitted];
+      return [[], mockScheduleToolCalls, mockMarkToolsAsSubmitted, vi.fn()];
     });
 
     renderHook(() =>
@@ -758,6 +758,7 @@ describe('useGeminiStream', () => {
         currentToolCalls,
         mockScheduleToolCalls,
         mockMarkToolsAsSubmitted,
+        vi.fn(), // setToolCallsForDisplay
       ];
     });
 
@@ -795,6 +796,7 @@ describe('useGeminiStream', () => {
         completedToolCalls,
         mockScheduleToolCalls,
         mockMarkToolsAsSubmitted,
+        vi.fn(), // setToolCallsForDisplay
       ];
     });
 
@@ -1280,7 +1282,7 @@ describe('useGeminiStream', () => {
 
       mockUseReactToolScheduler.mockImplementation((onComplete) => {
         capturedOnComplete = onComplete;
-        return [[], mockScheduleToolCalls, mockMarkToolsAsSubmitted];
+        return [[], mockScheduleToolCalls, mockMarkToolsAsSubmitted, vi.fn()];
       });
 
       renderHook(() =>

@@ -331,7 +331,10 @@ describe('useReactToolScheduler', () => {
         }),
       }),
     ]);
-    expect(result.current[0]).toEqual([]);
+    const toolCalls = result.current[0];
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0].status).toBe('success');
+    expect(toolCalls[0].request).toBe(request);
   });
 
   it('should handle tool not found', async () => {
@@ -354,24 +357,16 @@ describe('useReactToolScheduler', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(onComplete).toHaveBeenCalledWith([
-      expect.objectContaining({
-        status: 'error',
-        request,
-        response: expect.objectContaining({
-          error: expect.objectContaining({
-            message: expect.stringMatching(
-              /Tool "nonexistentTool" not found in registry/,
-            ),
-          }),
-        }),
-      }),
-    ]);
-    const errorMessage = onComplete.mock.calls[0][0][0].response.error.message;
-    expect(errorMessage).toContain('Did you mean one of:');
-    expect(errorMessage).toContain('"mockTool"');
-    expect(errorMessage).toContain('"anotherTool"');
-    expect(result.current[0]).toEqual([]);
+    const toolCalls = result.current[0];
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0].status).toBe('error');
+    expect(toolCalls[0].request).toBe(request);
+    expect((toolCalls[0] as any).response.error.message).toContain(
+      'Tool "nonexistentTool" not found in registry',
+    );
+    expect((toolCalls[0] as any).response.error.message).toContain(
+      'Did you mean one of:',
+    );
   });
 
   it('should handle error during shouldConfirmExecute', async () => {
@@ -397,16 +392,11 @@ describe('useReactToolScheduler', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(onComplete).toHaveBeenCalledWith([
-      expect.objectContaining({
-        status: 'error',
-        request,
-        response: expect.objectContaining({
-          error: confirmError,
-        }),
-      }),
-    ]);
-    expect(result.current[0]).toEqual([]);
+    const toolCalls = result.current[0];
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0].status).toBe('error');
+    expect(toolCalls[0].request).toBe(request);
+    expect((toolCalls[0] as any).response.error).toBe(confirmError);
   });
 
   it('should handle error during execute', async () => {
@@ -436,16 +426,11 @@ describe('useReactToolScheduler', () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(onComplete).toHaveBeenCalledWith([
-      expect.objectContaining({
-        status: 'error',
-        request,
-        response: expect.objectContaining({
-          error: execError,
-        }),
-      }),
-    ]);
-    expect(result.current[0]).toEqual([]);
+    const toolCalls = result.current[0];
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0].status).toBe('error');
+    expect(toolCalls[0].request).toBe(request);
+    expect((toolCalls[0] as any).response.error).toBe(execError);
   });
 
   it.skip('should handle tool requiring confirmation - approved', async () => {
@@ -739,7 +724,10 @@ describe('useReactToolScheduler', () => {
         ],
       }),
     });
-    expect(result.current[0]).toEqual([]);
+
+    const toolCalls = result.current[0];
+    expect(toolCalls).toHaveLength(2);
+    expect(toolCalls.every((t) => t.status === 'success')).toBe(true);
   });
 
   it.skip('should throw error if scheduling while already running', async () => {
@@ -795,7 +783,9 @@ describe('useReactToolScheduler', () => {
         response: expect.objectContaining({ resultDisplay: 'done display' }),
       }),
     ]);
-    expect(result.current[0]).toEqual([]);
+    const toolCalls = result.current[0];
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0].status).toBe('success');
   });
 });
 

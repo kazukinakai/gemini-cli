@@ -126,47 +126,54 @@ export const useGeminiStream = (
     return new GitService(config.getProjectRoot(), storage);
   }, [config, storage]);
 
-  const [toolCalls, scheduleToolCalls, markToolsAsSubmitted] =
-    useReactToolScheduler(
-      async (completedToolCallsFromScheduler) => {
-        // This onComplete is called when ALL scheduled tools for a given batch are done.
-        if (completedToolCallsFromScheduler.length > 0) {
-          // Add the final state of these tools to the history for display.
-          addItem(
-            mapTrackedToolCallsToDisplay(
-              completedToolCallsFromScheduler as TrackedToolCall[],
-            ),
-            Date.now(),
-          );
-
-          // Record tool calls with full metadata before sending responses.
-          try {
-            const currentModel =
-              config.getGeminiClient().getCurrentSequenceModel() ??
-              config.getModel();
-            config
-              .getGeminiClient()
-              .getChat()
-              .recordCompletedToolCalls(
-                currentModel,
-                completedToolCallsFromScheduler,
-              );
-          } catch (error) {
-            console.error(
-              `Error recording completed tool call information: ${error}`,
-            );
-          }
-
-          // Handle tool response submission immediately when tools complete
-          await handleCompletedTools(
+  const [
+    toolCalls,
+    scheduleToolCalls,
+    markToolsAsSubmitted,
+    setToolCallsForDisplay,
+  ] = useReactToolScheduler(
+    async (completedToolCallsFromScheduler) => {
+      // This onComplete is called when ALL scheduled tools for a given batch are done.
+      if (completedToolCallsFromScheduler.length > 0) {
+        // Add the final state of these tools to the history for display.
+        addItem(
+          mapTrackedToolCallsToDisplay(
             completedToolCallsFromScheduler as TrackedToolCall[],
+          ),
+          Date.now(),
+        );
+
+        // Clear the live-updating display now that the final state is in history.
+        setToolCallsForDisplay([]);
+
+        // Record tool calls with full metadata before sending responses.
+        try {
+          const currentModel =
+            config.getGeminiClient().getCurrentSequenceModel() ??
+            config.getModel();
+          config
+            .getGeminiClient()
+            .getChat()
+            .recordCompletedToolCalls(
+              currentModel,
+              completedToolCallsFromScheduler,
+            );
+        } catch (error) {
+          console.error(
+            `Error recording completed tool call information: ${error}`,
           );
         }
-      },
-      config,
-      getPreferredEditor,
-      onEditorClose,
-    );
+
+        // Handle tool response submission immediately when tools complete
+        await handleCompletedTools(
+          completedToolCallsFromScheduler as TrackedToolCall[],
+        );
+      }
+    },
+    config,
+    getPreferredEditor,
+    onEditorClose,
+  );
 
   const pendingToolCallGroupDisplay = useMemo(
     () =>

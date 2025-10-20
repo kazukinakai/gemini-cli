@@ -67,7 +67,12 @@ export function useReactToolScheduler(
   config: Config,
   getPreferredEditor: () => EditorType | undefined,
   onEditorClose: () => void,
-): [TrackedToolCall[], ScheduleFn, MarkToolsAsSubmittedFn] {
+): [
+  TrackedToolCall[],
+  ScheduleFn,
+  MarkToolsAsSubmittedFn,
+  React.Dispatch<React.SetStateAction<TrackedToolCall[]>>,
+] {
   const [toolCallsForDisplay, setToolCallsForDisplay] = useState<
     TrackedToolCall[]
   >([]);
@@ -96,36 +101,39 @@ export function useReactToolScheduler(
 
   const toolCallsUpdateHandler: ToolCallsUpdateHandler = useCallback(
     (updatedCoreToolCalls: ToolCall[]) => {
-      setToolCallsForDisplay((prevTrackedCalls) =>
-        updatedCoreToolCalls.map((coreTc) => {
-          const existingTrackedCall = prevTrackedCalls.find(
-            (ptc) => ptc.request.callId === coreTc.request.callId,
-          );
+      setToolCallsForDisplay((prevTrackedCalls) => {
+        const callsMap = new Map(
+          prevTrackedCalls.map((c) => [c.request.callId, c]),
+        );
+
+        for (const coreTc of updatedCoreToolCalls) {
+          const existingTrackedCall = callsMap.get(coreTc.request.callId);
           // Start with the new core state, then layer on the existing UI state
           // to ensure UI-only properties like pid are preserved.
           const responseSubmittedToGemini =
             existingTrackedCall?.responseSubmittedToGemini ?? false;
 
+          let newCall: TrackedToolCall;
           if (coreTc.status === 'executing') {
-            return {
+            newCall = {
               ...coreTc,
               responseSubmittedToGemini,
               liveOutput: (existingTrackedCall as TrackedExecutingToolCall)
                 ?.liveOutput,
               pid: (coreTc as ExecutingToolCall).pid,
             };
+          } else {
+            // For other statuses, explicitly set liveOutput and pid to undefined
+            // to ensure they are not carried over from a previous executing state.
+            newCall = {
+              ...coreTc,
+              responseSubmittedToGemini,
+            };
           }
-
-          // For other statuses, explicitly set liveOutput and pid to undefined
-          // to ensure they are not carried over from a previous executing state.
-          return {
-            ...coreTc,
-            responseSubmittedToGemini,
-            liveOutput: undefined,
-            pid: undefined,
-          };
-        }),
-      );
+          callsMap.set(coreTc.request.callId, newCall);
+        }
+        return Array.from(callsMap.values());
+      });
     },
     [setToolCallsForDisplay],
   );
@@ -156,9 +164,10 @@ export function useReactToolScheduler(
       request: ToolCallRequestInfo | ToolCallRequestInfo[],
       signal: AbortSignal,
     ) => {
+      setToolCallsForDisplay([]);
       void scheduler.schedule(request, signal);
     },
-    [scheduler],
+    [scheduler, setToolCallsForDisplay],
   );
 
   const markToolsAsSubmitted: MarkToolsAsSubmittedFn = useCallback(
@@ -174,7 +183,12 @@ export function useReactToolScheduler(
     [],
   );
 
-  return [toolCallsForDisplay, schedule, markToolsAsSubmitted];
+  return [
+    toolCallsForDisplay,
+    schedule,
+    markToolsAsSubmitted,
+    setToolCallsForDisplay,
+  ];
 }
 
 /**

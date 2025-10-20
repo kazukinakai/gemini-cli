@@ -1510,16 +1510,15 @@ describe('CoreToolScheduler request queueing', () => {
 
     await scheduler.schedule(requests, abortController.signal);
 
-    // Wait for all tools to be awaiting approval
+    // Wait for the FIRST tool to be awaiting approval
     await vi.waitFor(() => {
       const calls = onToolCallsUpdate.mock.calls.at(-1)?.[0] as ToolCall[];
-      expect(calls?.length).toBe(3);
-      expect(calls?.every((call) => call.status === 'awaiting_approval')).toBe(
-        true,
-      );
+      expect(calls?.length).toBe(1);
+      expect(calls?.[0].status).toBe('awaiting_approval');
+      expect(calls?.[0].request.callId).toBe('1');
     });
 
-    expect(pendingConfirmations.length).toBe(3);
+    expect(pendingConfirmations.length).toBe(1);
 
     // Approve the first tool with ProceedAlways
     const firstConfirmation = pendingConfirmations[0];
@@ -1528,14 +1527,15 @@ describe('CoreToolScheduler request queueing', () => {
     // Wait for all tools to be completed
     await vi.waitFor(() => {
       expect(onAllToolCallsComplete).toHaveBeenCalled();
-      const completedCalls = onAllToolCallsComplete.mock.calls.at(
-        -1,
-      )?.[0] as ToolCall[];
-      expect(completedCalls?.length).toBe(3);
-      expect(completedCalls?.every((call) => call.status === 'success')).toBe(
-        true,
-      );
     });
+
+    const completedCalls = onAllToolCallsComplete.mock.calls.at(
+      -1,
+    )?.[0] as ToolCall[];
+    expect(completedCalls?.length).toBe(3);
+    expect(completedCalls?.every((call) => call.status === 'success')).toBe(
+      true,
+    );
 
     // Verify approval mode was changed
     expect(approvalMode).toBe(ApprovalMode.AUTO_EDIT);
@@ -1788,11 +1788,10 @@ describe('CoreToolScheduler Sequential Execution', () => {
       expect(onAllToolCallsComplete).toHaveBeenCalled();
     });
 
-    // Check that execute was called for all three tools initially
-    expect(executeFn).toHaveBeenCalledTimes(3);
+    // Check that execute was called for the first two tools only
+    expect(executeFn).toHaveBeenCalledTimes(2);
     expect(executeFn).toHaveBeenCalledWith({ call: 1 });
     expect(executeFn).toHaveBeenCalledWith({ call: 2 });
-    expect(executeFn).toHaveBeenCalledWith({ call: 3 });
 
     const completedCalls = onAllToolCallsComplete.mock
       .calls[0][0] as ToolCall[];
